@@ -1,0 +1,93 @@
+#include <16F877A.h>
+#device ADC=16
+
+#FUSES NOWDT
+#FUSES NOBROWNOUT
+#FUSES NOLVP
+#use delay(crystal=4MHz)
+
+#define LCD_ENABLE_PIN PIN_D2
+#define LCD_RS_PIN PIN_D0
+#define LCD_RW_PIN PIN_D1
+#define LCD_DATA4 PIN_D4
+#define LCD_DATA5 PIN_D5
+#define LCD_DATA6 PIN_D6
+#define LCD_DATA7 PIN_D7
+
+#include <lcd.c>
+
+void main()
+{
+    lcd_init();
+    OUTPUT_B(0xff);  
+    port_b_pullups(true);   
+
+    unsigned char pa[4] = {1, 2, 3, 4};  
+    unsigned char x[4];  
+    int ag, i;
+
+    while (true)
+    {
+        ag = 1;
+        i = 3;
+        lcd_putc('\f');  // Clear LCD screen at the beginning of each loop
+
+        while (i >= 0)
+        {
+            OUTPUT_B(0xef);  // Set Row 1 Low
+            if (!input(PIN_B0)) {
+                lcd_gotoxy(ag++, 1);
+                lcd_putc('7');  
+                x[i--] = 7;
+                while (!input(PIN_B0));
+            } else if (!input(PIN_B1)) {
+                lcd_gotoxy(ag++, 1);
+                lcd_putc('4');  
+                x[i--] = 4;
+                while (!input(PIN_B1));
+            } // Add remaining conditions for Row 1
+
+            OUTPUT_B(0xff);
+            OUTPUT_B(0xdf);  // Set Row 2 Low
+            if (!input(PIN_B0)) {
+                lcd_gotoxy(ag++, 1);
+                lcd_putc('8');
+                x[i--] = 8;
+                while (!input(PIN_B0));
+            } // Add remaining conditions for Row 2
+
+            OUTPUT_B(0xff);
+            OUTPUT_B(0xbf);  // Set Row 3 Low
+            if (!input(PIN_B0)) {
+                lcd_gotoxy(ag++, 1);
+                lcd_putc('9');
+                x[i--] = 9;
+                while (!input(PIN_B0));
+            } // Add remaining conditions for Row 3
+
+            OUTPUT_B(0xff);
+            OUTPUT_B(0x7f);  // Set Row 4 Low
+            if (!input(PIN_B0)) {
+                lcd_gotoxy(ag++, 1);
+                lcd_putc('*');
+                while (!input(PIN_B0));
+            } // Add remaining conditions for Row 4
+
+            OUTPUT_B(0xff);  // Reset PORTB
+        }
+
+        if (x[3] == pa[0] && x[2] == pa[1] && x[1] == pa[2] && x[0] == pa[3]) {
+            OUTPUT_A(0xff);
+            lcd_gotoxy(1, 2);
+            lcd_putc("Password Correct");
+        } else {
+            OUTPUT_A(0x00);
+            lcd_gotoxy(1, 2);
+            lcd_putc("Password Incorrect");
+        }
+
+        delay_ms(1000);  // Short delay before clearing
+        OUTPUT_A(0x00);
+    }
+}
+

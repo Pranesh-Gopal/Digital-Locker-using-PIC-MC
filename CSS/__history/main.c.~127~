@@ -1,0 +1,97 @@
+#include <16F877A.h>
+#device ADC=16
+
+#FUSES NOWDT                    //No Watch Dog Timer
+#FUSES NOBROWNOUT               //No brownout reset
+#FUSES NOLVP                    //No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O
+#FUSES PUT
+#use delay(crystal=4MHz)
+
+#define LCD_ENABLE_PIN PIN_D2
+#define LCD_RS_PIN PIN_D0
+#define LCD_RW_PIN PIN_D1
+#define LCD_DATA4 PIN_D4
+#define LCD_DATA5 PIN_D5
+#define LCD_DATA6 PIN_D6
+#define LCD_DATA7 PIN_D7
+
+#include <lcd.c>
+
+const unsigned char correct_password[4] = {1, 2, 3, 4}; // Define correct password
+unsigned char entered_password[4]; // Store entered password
+int position = 0;
+
+void initialize_lcd() {
+    lcd_init();
+    lcd_gotoxy(1, 1);
+    lcd_putc("Enter Password:");
+}
+
+void check_password() {
+    int match = 1;
+    for (int i = 0; i < 4; i++) {
+        if (entered_password[i] != correct_password[i]) {
+            match = 0;
+            break;
+        }
+    }
+
+    lcd_gotoxy(1, 2);
+    if (match) {
+        lcd_putc("Password correct");
+        OUTPUT_A(0xff);  // Turn on an indicator (e.g., LED) if password is correct
+    } else {
+        lcd_putc("Password incorrect");
+        OUTPUT_A(0x00);  // Turn off indicator if password is incorrect
+    }
+
+    delay_ms(1000);
+    OUTPUT_A(0x00);  // Reset indicator after display
+    initialize_lcd(); // Reset LCD display for re-entry
+    position = 0;     // Reset position for password entry
+}
+
+void capture_keypad_input() {
+    // Loop through each column and row to detect keypad presses
+    if (position < 4) {
+        OUTPUT_B(0xef);  // Activate column 1
+        if (!input(PIN_B0)) { entered_password[position++] = 7; lcd_putc('7'); while(!input(PIN_B0)); }
+        else if (!input(PIN_B1)) { entered_password[position++] = 4; lcd_putc('4'); while(!input(PIN_B1)); }
+        else if (!input(PIN_B2)) { entered_password[position++] = 1; lcd_putc('1'); while(!input(PIN_B2)); }
+        else if (!input(PIN_B3)) { position--; lcd_putc('!'); while(!input(PIN_B3)); }
+
+        OUTPUT_B(0xdf);  // Activate column 2
+        if (!input(PIN_B0)) { entered_password[position++] = 8; lcd_putc('8'); while(!input(PIN_B0)); }
+        else if (!input(PIN_B1)) { entered_password[position++] = 5; lcd_putc('5'); while(!input(PIN_B1)); }
+        else if (!input(PIN_B2)) { entered_password[position++] = 2; lcd_putc('2'); while(!input(PIN_B2)); }
+        else if (!input(PIN_B3)) { entered_password[position++] = 0; lcd_putc('0'); while(!input(PIN_B3)); }
+
+        OUTPUT_B(0xbf);  // Activate column 3
+        if (!input(PIN_B0)) { entered_password[position++] = 9; lcd_putc('9'); while(!input(PIN_B0)); }
+        else if (!input(PIN_B1)) { entered_password[position++] = 6; lcd_putc('6'); while(!input(PIN_B1)); }
+        else if (!input(PIN_B2)) { entered_password[position++] = 3; lcd_putc('3'); while(!input(PIN_B2)); }
+        else if (!input(PIN_B3)) { position--; lcd_putc('='); while(!input(PIN_B3)); }
+
+        OUTPUT_B(0x7f);  // Activate column 4
+        if (!input(PIN_B0)) { position--; lcd_putc('*'); while(!input(PIN_B0)); }
+        else if (!input(PIN_B1)) { position--; lcd_putc('+'); while(!input(PIN_B1)); }
+        else if (!input(PIN_B2)) { position--; lcd_putc('-'); while(!input(PIN_B2)); }
+        else if (!input(PIN_B3)) { position--; lcd_putc('/'); while(!input(PIN_B3)); }
+
+        OUTPUT_B(0xff);  // Reset columns
+    }
+}
+
+void main() {
+    initialize_lcd();
+    port_b_pullups(true); // Enable pull-ups on PORTB
+    OUTPUT_B(0xff);       // Set all PORTB to high
+
+    while (true) {
+        capture_keypad_input();
+        if (position >= 4) {
+            check_password();
+        }
+    }
+}
+
